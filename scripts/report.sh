@@ -5,8 +5,8 @@ jq -e 'length == 5 and all(.[]; .exitCode == 0)' evidence/checks.json >/dev/null
 jq -e 'all(.[]; .passed)' evidence/http-tests.json >/dev/null
 find agda generated src app test scripts fixtures vendor limitations bin -type f \
   ! -name '*.agdai' ! -name '*.hi' ! -name '*.o' -print0 | sort -z | xargs -0 sha256sum > evidence/checksums.sha256
-sha256sum claims.json cabal.project cabal.project.freeze agda2hs.yaml verified-forum.cabal >> evidence/checksums.sha256
-find build/model build/extraction build/reproducer evidence/logs -type f ! -name '*.hi' ! -name '*.o' -print0 \
+sha256sum claims.json cabal.project cabal.project.freeze agda2hs.yaml verified-forum.cabal README.md architecture.md RESEARCH.md EXPERIMENTS.md LICENSE >> evidence/checksums.sha256
+find build/model build/extraction build/reproducer build/cache-reproducer evidence/logs -type f ! -name '*.hi' ! -name '*.o' -print0 \
   | sort -z | xargs -0 sha256sum >> evidence/checksums.sha256
 find agda -name '*.agdai' -print0 | sort -z | xargs -0 sha256sum >> evidence/checksums.sha256
 sha256sum evidence/http-tests.json evidence/attack-rendered.html >> evidence/checksums.sha256
