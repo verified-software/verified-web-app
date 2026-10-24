@@ -9,7 +9,7 @@ common core
   hs-source-dirs: generated, src
   ghc-options: -Wall -O0
   build-depends: base >=4.18 && <4.19, aeson ==2.3.2.0, bytestring, text, containers, scientific
-  other-modules: ForumCore, Adapter
+  other-modules: ForumCore, ClientCore, Adapter, ProgramAdapter
 
 executable verified-forum
   import: core
@@ -26,3 +26,12 @@ test-suite core-tests
   main-is: CoreSpec.hs
   build-depends: QuickCheck ==2.18.0.0
   other-modules: Oracle, MAlonzo.Code.ForumCore, MAlonzo.RTE
+
+test-suite program-tests
+  import: core
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test, build/model
+  main-is: ProgramSpec.hs
+  build-depends: QuickCheck ==2.18.0.0
+  other-modules: Oracle, ClientOracle, MAlonzo.Code.ForumCore, MAlonzo.Code.ClientCore,
+    MAlonzo.Code.ClientModel, MAlonzo.RTE

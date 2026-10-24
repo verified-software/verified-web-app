@@ -1,21 +1,21 @@
 {
-  "schemaVersion":1,
-  "component":"ForumCore.execute and ForumCore.render",
-  "proofSource":"agda/ForumProofs.agda",
+  "schemaVersion":3,
+  "component":"ClientCore.run, step, confined; reused ForumCore.execute and render",
   "claims":[
-    {"id":"protocol.safety","kind":"agda-theorem","definition":"protocol-safety","statement":"For every limit, session, request and store, execute returns a Legal result: every Accepted result has a Step witness for the allowed indexed state transition."},
-    {"id":"authorization.guest","kind":"agda-theorem","definitions":["guest-create-denied","guest-edit-denied"],"statement":"Guest create and edit requests always return Denied Unauthorized, for every store and body."},
-    {"id":"ownership.edit","kind":"agda-theorem","definition":"accepted-edit-secure","statement":"For every accepted execute of EditPost by Logged u: the original target is OwnedAt u and before/after stores satisfy AllProtected u pointwise."},
-    {"id":"ownership.unchanged","kind":"agda-theorem","definitions":["unowned-unchanged","owner-preserved"],"statement":"Protected cells not owned by the actor are identical; all protected cells retain their original owner."},
-    {"id":"render.no-tag","kind":"agda-theorem","definition":"render-no-tag","statement":"For every input glyph list, every output glyph of render is Plain SafeChar or Amp. Raw Lt, Gt, DQuote and SQuote cannot occur."},
-    {"id":"render.bound","kind":"agda-theorem","definition":"render-bounded","statement":"Fits n text implies Fits (sixTimes n) (render text): at most 6 output glyphs per input glyph."},
-    {"id":"body.bound","kind":"agda-theorem","definitions":["accepted-create-bounded","accepted-edit-bounded"],"statement":"Every accepted create/edit by execute has a body fitting the supplied text limit."},
-    {"id":"store.bound","kind":"agda-theorem","definition":"store-bound-preserved","statement":"If the starting store Fits the supplied post limit, every accepted execute result Fits that same limit."},
-    {"id":"differential.tests","kind":"property-test","source":"test/CoreSpec.hs","seed":20261024,"casesPerProperty":2000,"properties":6},
-    {"id":"http.attacks","kind":"integration-test","source":"scripts/http-tests.sh","result":"evidence/http-tests.json"}
+    {"id":"authorization.program","kind":"agda-theorem","source":"agda/ClientProofs.agda","definitions":["program-authorized","step-authorized","write-safe"],"statement":"Every accepted run has an AuthorizedTrace with actual step equations; every create requires Editor authority, and every edit also has an ownership/protected-cell guarantee."},
+    {"id":"capability.confinement","kind":"agda-theorem","source":"agda/ClientProofs.agda","definitions":["initial-confined","step-confined","run-confined"],"statement":"Current and pending authority in accepted results remains owner-preserving and no stronger than initial supplied grants; Viewer never upgrades to Editor without an initial Editor source."},
+    {"id":"capability.logout","kind":"agda-theorem","source":"agda/ClientProofs.agda","definitions":["logout-revokes","relogin-after-logout-denied"],"statement":"Successful core logout clears current and pending grants; the empty context cannot sign in without a new trusted offer. Failed HTTP batches roll back all actions."},
+    {"id":"ifc.public","kind":"agda-theorem","source":"agda/ClientFlow.agda","definition":"public-noninterference","statement":"For fixed program, context, public store and fuel, arbitrary private-vault changes leave publicView(run) equal; only Classified payload bodies are masked."},
+    {"id":"ifc.observer","kind":"agda-theorem","source":"agda/ClientFlow.agda","definition":"observer-noninterference","statement":"With all available authority confined to one observer and that observer's private value unchanged, arbitrary changes to other private values leave the complete Result equal."},
+    {"id":"ifc.access","kind":"agda-theorem","source":"agda/ClientFlow.agda","definitions":["private-access-owned","private-sink-denied","private-control-denied"],"statement":"Private values are readable only by their current authenticated owner, cannot become public post bodies and cannot drive conditions."},
+    {"id":"resource.events","kind":"agda-theorem","source":"agda/ClientProofs.agda","definition":"run-budget","statement":"Every accepted trace Fits supplied fuel; each executed primitive or branch consumes one unit. No CPU/heap/parser bound is claimed."},
+    {"id":"syntax.origin","kind":"agda-theorem","source":"agda/ClientSyntax.agda","definition":"program-no-injection","statement":"Every accepted event originates from a matching operation or branch in the submitted syntax; input glyphs cannot introduce an operation."},
+    {"id":"forum.invariants","kind":"agda-theorem","source":"agda/ForumProofs.agda","definitions":["protocol-safety","accepted-edit-secure","render-no-tag","render-bounded","accepted-create-bounded","accepted-edit-bounded","store-bound-preserved"],"statement":"Reused legal base transitions, ownership, text-only escaping and glyph/store size properties."},
+    {"id":"differential.tests","kind":"property-test","sources":["test/CoreSpec.hs","test/ProgramSpec.hs"],"seed":20261024,"casesPerProperty":2000,"properties":16},
+    {"id":"http.attacks","kind":"integration-test","sources":["scripts/http-tests.sh","scripts/program-http-tests.sh"],"results":["evidence/http-tests.json","evidence/program-http-tests.json"]}
   ],
-  "assumptions":["Correct Agda kernel and primitives", "Finite fully defined Haskell inputs", "Correct auth adapter binding bearer tokens to server-side User values", "Correct ASCII glyph/byte conversion and HTML text-node placement; no reparse into script/style/attribute/URL context", "Correct GHC/agda2hs, runtime, OS, dependencies and scripts"],
-  "unverified":["agda2hs and GHC semantics preservation", "HTTP/JSON parsing, nesting and wire-byte limits", "Credentials, entropy, session tokens, session capacity and atomic state integration", "Browser HTML parsing, CSP and response headers", "Overall CPU/heap/network limits, denial of service and concurrency semantics", "Authentication strength, TLS, persistence and production deployment"],
-  "compilerCertification":{"available":false,"reason":"The host-code compilers do not produce semantic-preservation evidence in this experiment."},
-  "hashMeaning":"SHA256 binds source, generated code, logs and executable bytes. It is not proof of translation correctness or authenticity."
+  "assumptions":["Correct Agda kernel and primitive definitions", "Correct agda2hs, MAlonzo, GHC and runtime semantics for finite fully defined Haskell inputs", "Trusted login offers, authentication, bearer-to-context binding, response routing and atomic commit integration", "Correct glyph encoding and escaped HTML placement only in text nodes", "Fixed-program, fixed-public-state observations; no timing or adaptive-client theorem"],
+  "unverified":["Compiler semantics preservation", "HTTP/JSON parsing and duplicate-key behavior", "Byte, JSON nesting and AST node prechecks", "Credential strength, token entropy, session storage/capacity, TLS, persistence", "Browser parsing, response headers and rendering-to-browser semantics", "CPU/heap/network/concurrency side channels and denial of service", "Malicious code inside server process or authorized client copying plaintext outside the DSL"],
+  "compilerCertification":{"available":false,"reason":"No semantics-preservation certificate from agda2hs/MAlonzo/GHC."},
+  "hashMeaning":"SHA-256 binds bytes of sources, generated code, executable and evidence; it is not proof of translation correctness or authenticity."
 }

@@ -17,10 +17,12 @@ run() {
 run prepare bash scripts/prepare.sh
 run haskell-build cabal build all -j2
 run core-tests cabal test core-tests --test-show-details=direct
+run program-tests cabal test program-tests --test-show-details=direct
 cp "$(cabal list-bin exe:verified-forum)" bin/verified-forum
 strip bin/verified-forum
 run http-tests bash scripts/http-tests.sh
+run program-http-tests bash scripts/program-http-tests.sh
 run limitations bash scripts/check-limitations.sh
 { ghc --version; cabal --version; agda --version; agda2hs --version; } > evidence/versions.txt
 bash scripts/report.sh
-echo 'Forum proof, extraction, model comparison, HTTP and limitation checks passed.'
+echo 'Forum and capability proofs, extraction, both model suites, both HTTP suites and compiler reproductions passed.'
