@@ -10,6 +10,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text.Encoding qualified as TE
+import Data.Text qualified as Text
 import ForumCore qualified as F
 import ClientCore qualified as C
 import Network.HTTP.Types
@@ -17,6 +18,7 @@ import Network.Wai hiding (vault)
 import Network.Wai.Handler.Warp
 import Numeric (showHex)
 import System.IO (IOMode(ReadMode), withBinaryFile)
+import System.Environment (lookupEnv)
 
 data World = World { sessions :: Map BS.ByteString C.Context, posts :: [F.Post], vault :: C.Vault }
 headers :: ResponseHeaders
@@ -58,9 +60,9 @@ process ref req legacy bundle = modifyMVar ref $ \world -> case resolve req worl
     Left response -> pure (world,response)
     Right offer ->
       let ctx=C.Ctx (C.current stored) offer
-       in case C.run textLimit postLimit (budget bundle) (program bundle) ctx (posts world) (vault world) of
-         C.Refused err -> pure (world,failure (errorStatus ctx err) (show err))
-         C.Finished next ps trace
+       in case C.transaction textLimit postLimit (budget bundle) (program bundle) ctx (posts world) (vault world) of
+         C.Rollback err ps -> pure (world {posts=ps},failure (errorStatus ctx err) (show err))
+         C.Commit next ps trace
            | not (C.confined next (C.sources ctx)) -> pure (world,failure status500 "capability origin check failed")
            | otherwise -> commit world token stored next ps trace
   where
@@ -134,6 +136,15 @@ application ref req respond = case (requestMethod req,pathInfo req) of
 
 runServer :: Int -> IO ()
 runServer port = do
-  world <- newMVar (World Map.empty [] demoVault)
+  privateVault <- fixtureVault
+  world <- newMVar (World Map.empty [] privateVault)
   putStrLn ("Verified forum at http://127.0.0.1:"<>show port)
   runSettings (setTimeout 5 (setHost "127.0.0.1" (setPort port defaultSettings))) (application world)
+
+-- Trusted test configuration, never read from a client request. Allows paired
+-- HTTP runs with different Alice secrets and otherwise identical state.
+fixtureVault :: IO C.Vault
+fixtureVault = do
+  let C.VaultC defaultAlice defaultBob=demoVault
+      load name fallback = lookupEnv name >>= maybe (pure fallback) (either (ioError . userError) pure . encodeText . Text.pack)
+  C.VaultC <$> load "FORUM_ALICE_DRAFT" defaultAlice <*> load "FORUM_BOB_DRAFT" defaultBob

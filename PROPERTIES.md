@@ -12,15 +12,18 @@ All theorems below concern the executable definitions in `ClientCore.agda` or th
 | Private access belongs to the principal | `private-access-owned`: every successful evaluation of a private source has the currently authenticated owner. `private-sink-denied` and `private-control-denied` reject private writes to public posts and conditions on private values. |
 | Bounded execution | `ClientProofs.run-budget`: every accepted execution trace Fits its initial fuel. Every primitive and condition emits one event. Total fuel recursion terminates, including adversarial programs. This does not bound glyph traversal, parsing, allocation or wall time. |
 | Code/data separation | `ClientSyntax.program-no-injection`: every event in an accepted run has an operation/branch origin in the original Program syntax, with matching constructor and edit index. Literal post data cannot introduce an operation. Public input can select an existing branch. |
+| Transaction rollback | `ClientTransactions.transaction-rollback`: every Rollback returns the exact original post store. `transaction-authorized` preserves the full trace theorem on Commit; `transaction-observer` preserves complete observer noninterference. This wrapper is extracted and determines the store selected by the real server. Session map updates and actually installing the result remain trusted adapter behavior. |
 | Existing forum invariants | `ForumProofs.protocol-safety`, `accepted-edit-secure`, `accepted-create-bounded`, `accepted-edit-bounded`, `store-bound-preserved`, `render-no-tag`, `render-bounded`: legal base transitions, authorization/ownership, post and store limits, no raw tag delimiters after escaping, and at most six rendered glyphs per input glyph. |
 
 Noninterference fixes the program and literal inputs. It excludes adaptive clients that obtain plaintext then submit a different program, timing, allocation, termination of the HTTP runtime, packet sizes and external side channels. There is no declassification operation and no private-to-public conversion inside this language. We do not claim that an authorized user cannot copy their own draft outside it.
 
 ## Tested, not proved
 
-`test/CoreSpec.hs`: six properties × 2,000 cases from Experiment 2. `test/ProgramSpec.hs`: ten × 2,000, including independent Agda/MAlonzo equality, capability confinement, both information-flow observations, step ownership, budgets, literal separation and JSON AST round trips. Fixed seed 20261024; generated contexts include arbitrary current/pending principals and ranks. Small bounded generators do not exhaust all programs. Deterministic regressions cover logout, attenuation and forged syntax.
+`test/CoreSpec.hs`: six properties × 2,000 cases from Experiment 2. `test/ProgramSpec.hs`: eleven × 2,000, including independent Agda/MAlonzo interpreter and transaction equality, rollback, capability confinement, both information-flow observations, step ownership, budgets, literal separation and JSON AST round trips. Fixed seed 20261024; generated contexts include arbitrary current/pending principals and ranks. Small bounded generators do not exhaust all programs. Deterministic regressions cover logout, attenuation and forged syntax.
 
 `scripts/http-tests.sh` preserves the original suite. `scripts/program-http-tests.sh` records program requests, expected/actual statuses and responses, exercising both endpoints. The report contains actual counts and exit codes. Testing a theorem on generated Haskell gives evidence about extraction; it is not a translation proof.
+
+`scripts/observer-http-tests.sh` compares 18 pairs of complete HTTP results with different Alice private data and matching Bob data/public state. Only random login tokens are omitted. It also compares the public JSON and HTML byte for byte. These are adapter tests of the stated channel, not a theorem about arbitrary HTTP observations or scheduling.
 
 ## Assumed and unverified
 

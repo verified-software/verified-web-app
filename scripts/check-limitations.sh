@@ -2,6 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build/reproducer evidence/logs
+status=0
+agda --no-libraries --ignore-interfaces -i limitations limitations/SafePragma.agda > evidence/logs/safe-pragma.log 2>&1 || status=$?
+[[ $status -ne 0 ]]
+grep -Fiq 'safe' evidence/logs/safe-pragma.log
+echo 'PASS expected rejection of backend COMPILE pragma in safe source'
 flags=(--no-libraries --erasure -i vendor/agda2hs-base -i limitations)
 status=0
 agda2hs "${flags[@]}" --ignore-interfaces -o build/reproducer limitations/Indexed.agda > evidence/logs/indexed-datatype.log 2>&1 || status=$?

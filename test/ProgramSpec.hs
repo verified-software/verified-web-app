@@ -53,6 +53,14 @@ runTrial (Trial gas p ctx ps v) = C.run textLimit postLimit (toCount gas) p ctx 
 prop_model :: Trial -> Property
 prop_model t@(Trial gas p ctx ps v) = runTrial t === Model.run textLimit postLimit (toCount gas) p ctx ps v
 
+prop_transaction :: Trial -> Property
+prop_transaction (Trial gas p ctx ps v) =
+  let result=C.transaction textLimit postLimit (toCount gas) p ctx ps v
+   in conjoin [result === Model.transaction textLimit postLimit (toCount gas) p ctx ps v,
+      case result of
+        C.Rollback _ after -> after === ps
+        C.Commit next after trace -> C.run textLimit postLimit (toCount gas) p ctx ps v === C.Finished next after trace]
+
 prop_stepModel :: Property
 prop_stepModel = forAll genContext $ \ctx -> forAll genOp $ \op -> forAll genPosts $ \ps ->
   forAll genVault $ \v -> C.step textLimit postLimit ctx op ps v === Model.step textLimit postLimit ctx op ps v
@@ -148,6 +156,7 @@ main = do
           replay=Just (mkQCGen 20261024,0)} p
         unless (isSuccess result) exitFailure
   run "program interpreter agrees with independent Agda/MAlonzo" (property prop_model)
+  run "transaction matches Agda and refused batches preserve original store" (property prop_transaction)
   run "primitive interpreter agrees with independent Agda/MAlonzo" prop_stepModel
   run "capability source confinement and oracle agreement" (property prop_confinement)
   run "public noninterference under arbitrary private-vault changes" (property prop_publicNI)

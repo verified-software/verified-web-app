@@ -179,3 +179,14 @@ grantList Nothing = []
 grantList (Just g) = g ∷ []
 sources : Context → List Grant
 sources (Ctx c p) = F.append (grantList c) (grantList p)
+
+-- Store selection is part of the executable core. A refused suffix must not
+-- leak a successful prefix's writes into the HTTP store.
+data Transaction : Type where
+  Rollback : Error → List F.Post → Transaction
+  Commit : Context → List F.Post → List Event → Transaction
+settle : List F.Post → Result → Transaction
+settle before (Refused err) = Rollback err before
+settle before (Finished ctx after es) = Commit ctx after es
+transaction : F.Count → F.Count → F.Count → Program → Context → List F.Post → Vault → Transaction
+transaction tl pl fuel program ctx before vault = settle before (run tl pl fuel program ctx before vault)

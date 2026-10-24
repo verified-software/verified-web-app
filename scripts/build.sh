@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-mkdir -p evidence/logs bin
+mkdir -p evidence/logs evidence/baseline evidence/development bin
 printf '[]\n' > evidence/checks.json
 run() {
   local name=$1; shift
@@ -16,13 +16,14 @@ run() {
 }
 run prepare bash scripts/prepare.sh
 run haskell-build cabal build all -j2
-run core-tests cabal test core-tests --test-show-details=direct
-run program-tests cabal test program-tests --test-show-details=direct
+run core-tests bash scripts/run-tests.sh core-tests
+run program-tests bash scripts/run-tests.sh program-tests
 cp "$(cabal list-bin exe:verified-forum)" bin/verified-forum
 strip bin/verified-forum
 run http-tests bash scripts/http-tests.sh
 run program-http-tests bash scripts/program-http-tests.sh
+run observer-http-tests bash scripts/observer-http-tests.sh
 run limitations bash scripts/check-limitations.sh
 { ghc --version; cabal --version; agda --version; agda2hs --version; } > evidence/versions.txt
 bash scripts/report.sh
-echo 'Forum and capability proofs, extraction, both model suites, both HTTP suites and compiler reproductions passed.'
+echo 'Forum and capability proofs, extraction, both model suites, all HTTP suites and compiler reproductions passed.'

@@ -1,5 +1,5 @@
 module ClientCore
-  (Rank(..), Grant(..), Context(..), current, pending, grantUser, session, actor, canWrite, Expr(..), Vault(..), secret, Value(..), Evaluation(..), evaluate, Op(..), Program(..), Error(..), Event(..), StepResult(..), Result(..), Mutation(..), request, writeEvent, commitForum, writeValue, inspectValue, signIn, signOut, readOnly, step, prepend, continue, choose, run, redactValue, redactEvent, redactEvents, publicView, rankBelow, below, covered, maybeCovered, confined, grantList, sources)
+  (Rank(..), Grant(..), Context(..), current, pending, grantUser, session, actor, canWrite, Expr(..), Vault(..), secret, Value(..), Evaluation(..), evaluate, Op(..), Program(..), Error(..), Event(..), StepResult(..), Result(..), Mutation(..), request, writeEvent, commitForum, writeValue, inspectValue, signIn, signOut, readOnly, step, prepend, continue, choose, run, redactValue, redactEvent, redactEvents, publicView, rankBelow, below, covered, maybeCovered, confined, grantList, sources, Transaction(..), settle, transaction)
 where
 
 import Prelude hiding (LT)
@@ -243,4 +243,19 @@ grantList (Just g) = [g]
 
 sources :: Context -> [Grant]
 sources (Ctx c p) = F.append (grantList c) (grantList p)
+
+data Transaction = Rollback Error [F.Post]
+                 | Commit Context [F.Post] [Event]
+                     deriving (Eq, Show)
+
+settle :: [F.Post] -> Result -> Transaction
+settle before (Refused err) = Rollback err before
+settle before (Finished ctx after es) = Commit ctx after es
+
+transaction ::
+            F.Count ->
+              F.Count ->
+                F.Count -> Program -> Context -> [F.Post] -> Vault -> Transaction
+transaction tl pl fuel program ctx before vault
+  = settle before (run tl pl fuel program ctx before vault)
 

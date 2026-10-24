@@ -32,3 +32,12 @@ stepModel : F.Count → F.Count → Op → List Grant → List Grant → List F.
 stepModel tl pl op c p posts vault = flattenStep (step tl pl (Ctx (first c) (first p)) op posts vault)
 confinedModel : List Grant → List Grant → List Grant → Bool
 confinedModel c p allowed = confined (Ctx (first c) (first p)) allowed
+
+data FlatTransaction : Type where
+  FlatRollback : Error → List F.Post → FlatTransaction
+  FlatCommit : List Grant → List Grant → List F.Post → List Event → FlatTransaction
+flattenTransaction : Transaction → FlatTransaction
+flattenTransaction (Rollback err ps) = FlatRollback err ps
+flattenTransaction (Commit ctx ps es) = FlatCommit (grantList (current ctx)) (grantList (pending ctx)) ps es
+transactionModel : F.Count → F.Count → F.Count → Program → List Grant → List Grant → List F.Post → Vault → FlatTransaction
+transactionModel tl pl fuel program c p posts vault = flattenTransaction (transaction tl pl fuel program (Ctx (first c) (first p)) posts vault)

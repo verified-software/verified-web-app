@@ -45,3 +45,6 @@
 {-# COMPILE AGDA2HS confined #-}
 {-# COMPILE AGDA2HS grantList #-}
 {-# COMPILE AGDA2HS sources #-}
+{-# COMPILE AGDA2HS Transaction deriving (Eq, Show) #-}
+{-# COMPILE AGDA2HS settle #-}
+{-# COMPILE AGDA2HS transaction #-}

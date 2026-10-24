@@ -1,5 +1,5 @@
 -- TEST ONLY. Explicit typed bridge to independently generated MAlonzo code.
-module ClientOracle (run, step, confined) where
+module ClientOracle (run, step, confined, transaction) where
 import ClientCore qualified as C
 import ForumCore qualified as F
 import Oracle qualified as O
@@ -65,6 +65,8 @@ backResult (W.@Model.FlatRefused@ e) = C.Refused (backError e)
 backResult (W.@Model.FlatFinished@ c p ps es) = C.Finished (context c p) (map O.backPost ps) (map backEvent es)
 backStep (W.@Model.FlatRejected@ e) = C.Rejected (backError e)
 backStep (W.@Model.FlatApplied@ c p ps e) = C.Applied (context c p) (map O.backPost ps) (backEvent e)
+backTransaction (W.@Model.FlatRollback@ e ps) = C.Rollback (backError e) (map O.backPost ps)
+backTransaction (W.@Model.FlatCommit@ c p ps es) = C.Commit (context c p) (map O.backPost ps) (map backEvent es)
 run :: F.Count -> F.Count -> F.Count -> C.Program -> C.Context -> [F.Post] -> C.Vault -> C.Result
 run tl pl fuel p ctx ps v = backResult (W.@Fun.runModel@ (O.count tl) (O.count pl) (O.count fuel)
   (program p) (grantList (C.current ctx)) (grantList (C.pending ctx)) (map O.post ps) (vault v))
@@ -73,3 +75,6 @@ step tl pl ctx action ps v = backStep (W.@Fun.stepModel@ (O.count tl) (O.count p
   (grantList (C.current ctx)) (grantList (C.pending ctx)) (map O.post ps) (vault v))
 confined :: C.Context -> [C.Grant] -> Bool
 confined ctx allowed = W.@Fun.confinedModel@ (grantList (C.current ctx)) (grantList (C.pending ctx)) (map grant allowed)
+transaction :: F.Count -> F.Count -> F.Count -> C.Program -> C.Context -> [F.Post] -> C.Vault -> C.Transaction
+transaction tl pl fuel p ctx ps v = backTransaction (W.@Fun.transactionModel@ (O.count tl) (O.count pl) (O.count fuel)
+  (program p) (grantList (C.current ctx)) (grantList (C.pending ctx)) (map O.post ps) (vault v))

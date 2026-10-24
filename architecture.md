@@ -5,9 +5,9 @@ flowchart TD
   C["Untrusted client program"] --> A["HTTP / JSON / authentication adapter"]
   A --> V["Extracted ClientCore interpreter"]
   V --> F["Extracted ForumCore store and renderer"]
-  V --> R{"Finished?"}
-  R -->|yes| S["Atomic session and post commit"]
-  R -->|no| X["Reject; retain previous state"]
+  V --> R{"Extracted transaction result"}
+  R -->|Commit| S["Atomic session and post commit"]
+  R -->|Rollback| X["Reject; restore returned original store"]
   P["Safe Agda proofs"] -. "check semantics" .-> V
   P -. "check semantics" .-> F
   S --> O["JSON or escaped HTML response"]
