@@ -17,7 +17,7 @@ common core
   hs-source-dirs: generated, src
   ghc-options: -Wall -O0
   build-depends: base >=4.18 && <4.19, aeson ==2.3.2.0, bytestring, text, containers, scientific, verified-forum
-  other-modules: ForumCore, ClientCore, Adapter, ProgramAdapter, TenantAdapter
+  other-modules: ForumCore, ClientCore, RevocationCore, Adapter, ProgramAdapter, TenantAdapter
 
 executable verified-forum
   import: core

@@ -14,6 +14,7 @@ import Data.Text.Encoding qualified as TE
 import Data.Text qualified as Text
 import ForumCore qualified as F
 import ClientCore qualified as C
+import RevocationCore qualified as R
 import VerifiedTenant qualified as T
 import Network.HTTP.Types
 import Network.Wai hiding (vault)
@@ -85,7 +86,12 @@ process ref req scope legacy bundle = modifyMVar ref $ \world -> case resolve re
       Right offer ->
         let ctx=C.Ctx (C.current stored) offer
          in case C.transaction textLimit postLimit (budget bundle) (program bundle) ctx before (vault world) of
-           C.Rollback err _ -> pure (world,failure (errorStatus ctx err) (show err))
+           C.Rollback err _ ->
+             let remaining = R.afterFailure (program bundle) token
+                 sessionMap = case (token,remaining) of
+                   (Just old,Nothing) -> Map.delete old (sessions world)
+                   _ -> sessions world
+              in pure (world {sessions=sessionMap},failure (errorStatus ctx err) (show err))
            C.Commit next ps trace
              | not (C.confined next (C.sources ctx)) -> pure (world,failure status500 "capability origin check failed")
              | otherwise -> commit world token stored next ps trace

@@ -92,6 +92,28 @@ class TenantHTTP(unittest.TestCase):
         self.assertEqual(self.request("POST", "/command", {"op":"logout"}, alice)[0], 200)
         self.assertEqual(self.request("GET", path+"/posts", token=alice)[0], 401)
 
+    def test_failed_revocation_closes_session(self):
+        alice = self.login("alice")
+        # Tenant denial happens before the interpreter; no logout was run.
+        denied_logout = {"budget":1,"program":{"op":"logout"}}
+        self.assertEqual(self.request("POST", "/tenants/beta/program", denied_logout, alice)[0], 403)
+        self.assertEqual(self.request("GET", "/tenants/alpha/posts", token=alice)[0], 200)
+        ordinary_failure = {"budget":1,"program":{"op":"inspect","value":{"private":"bob"}}}
+        self.assertEqual(self.request("POST", "/program", ordinary_failure, alice)[0], 403)
+        self.assertEqual(self.request("GET", "/tenants/alpha/posts", token=alice)[0], 200)
+        failed_restriction = {"budget":2,"program":{"op":"restrict","next":{"op":"create","value":{"text":"no"}}}}
+        self.assertEqual(self.request("POST", "/program", failed_restriction, alice)[0], 403)
+        self.assertEqual(self.request("GET", "/tenants/alpha/posts", token=alice)[0], 401)
+        alice = self.login("alice")
+        failed_logout = {"budget":2,"program":{"op":"logout","next":{"op":"inspect","value":{"private":"alice"}}}}
+        self.assertEqual(self.request("POST", "/program", failed_logout, alice)[0], 403)
+        self.assertEqual(self.request("GET", "/tenants/alpha/posts", token=alice)[0], 401)
+        alice = self.login("alice")
+        hidden_logout = {"budget":2,"program":{"if":{"text":"x"},"then":{"op":"logout"},
+                                               "else":{"op":"inspect","value":{"private":"bob"}}}}
+        self.assertEqual(self.request("POST", "/program", hidden_logout, alice)[0], 403)
+        self.assertEqual(self.request("GET", "/tenants/alpha/posts", token=alice)[0], 401)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

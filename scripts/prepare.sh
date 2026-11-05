@@ -6,6 +6,7 @@ flags=(--no-libraries --erasure --no-projection-like --ignore-interfaces -i vend
 agda "${flags[@]}" --safe --double-check --ignore-interfaces -i agda agda/ForumProofs.agda > evidence/logs/agda-proofs.log 2>&1
 agda "${flags[@]}" --safe --double-check --ignore-interfaces -i agda agda/ClientProofs.agda > evidence/logs/client-proofs.log 2>&1
 agda "${flags[@]}" --safe --double-check --ignore-interfaces -i agda agda/TenantProofs.agda > evidence/logs/tenant-proofs.log 2>&1
+agda "${flags[@]}" --safe --double-check --ignore-interfaces -i agda agda/RevocationProofs.agda > evidence/logs/revocation-proofs.log 2>&1
 agda "${flags[@]}" --safe --double-check -i agda agda/ClientFlow.agda > evidence/logs/client-flow.log 2>&1
 agda "${flags[@]}" --safe --double-check -i agda agda/ClientSyntax.agda > evidence/logs/client-syntax.log 2>&1
 agda "${flags[@]}" --safe --double-check -i agda agda/ClientTransactions.agda > evidence/logs/client-transactions.log 2>&1
@@ -17,10 +18,14 @@ sed 's/--safe //g' agda/ClientCore.agda > build/extraction/ClientCore.agda
 cat scripts/client-pragmas.agda.inc >> build/extraction/ClientCore.agda
 sed 's/--safe //g' agda/TenantCore.agda > build/extraction/TenantCore.agda
 cat scripts/tenant-pragmas.agda.inc >> build/extraction/TenantCore.agda
+sed 's/--safe //g' agda/RevocationCore.agda > build/extraction/RevocationCore.agda
+cat scripts/revocation-pragmas.agda.inc >> build/extraction/RevocationCore.agda
 agda2hs "${flags[@]}" --ignore-interfaces -i build/extraction --config agda2hs.yaml -o generated build/extraction/ForumCore.agda > evidence/logs/agda2hs.log 2>&1
 agda2hs "${flags[@]}" --ignore-interfaces -i build/extraction --config agda2hs.yaml -o generated build/extraction/ClientCore.agda >> evidence/logs/agda2hs.log 2>&1
 agda2hs "${flags[@]}" --ignore-interfaces -i build/extraction --config agda2hs.yaml -o generated build/extraction/TenantCore.agda >> evidence/logs/agda2hs.log 2>&1
 sed -i '${/^$/d;}' generated/TenantCore.hs
+agda2hs "${flags[@]}" --ignore-interfaces -i build/extraction --config agda2hs.yaml -o generated build/extraction/RevocationCore.agda >> evidence/logs/agda2hs.log 2>&1
+sed -i '${/^$/d;}' generated/RevocationCore.hs
 agda "${flags[@]}" --safe -i agda --compile --ghc-dont-call-ghc --no-main --compile-dir=build/model agda/ForumCore.agda > evidence/logs/agda-model.log 2>&1
 agda "${flags[@]}" --safe -i agda --compile --ghc-dont-call-ghc --no-main --compile-dir=build/model agda/ClientCore.agda >> evidence/logs/agda-model.log 2>&1
 agda "${flags[@]}" --safe -i agda --compile --ghc-dont-call-ghc --no-main --compile-dir=build/model agda/ClientModel.agda >> evidence/logs/agda-model.log 2>&1

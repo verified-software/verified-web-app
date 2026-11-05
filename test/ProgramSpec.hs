@@ -5,6 +5,7 @@ import ProgramAdapter
 import ClientCore qualified as C
 import ClientOracle qualified as Model
 import ForumCore qualified as F
+import RevocationCore qualified as R
 import Control.Monad (unless,forM_)
 import Data.Aeson (Value,encode,object,(.=))
 import Data.ByteString.Lazy qualified as LBS
@@ -117,6 +118,29 @@ prop_payload = forAll genBody $ \body ->
    in C.run textLimit postLimit (toCount 1) (C.Invoke (C.Publish (C.Literal body)) C.Stop) ctx [] demoVault ===
       C.Finished ctx [F.PostC F.Alice body] [C.Posted F.Alice]
 
+prop_failedRevocation :: Trial -> Property
+prop_failedRevocation (Trial _ p _ _ _) =
+  let session = Just (42::Int)
+      signOut = C.Invoke C.SignOut C.Stop
+      restrict = C.Invoke C.ReadOnly C.Stop
+      condition = C.Literal []
+      operations C.Stop = []
+      operations (C.Invoke op rest) = op : operations rest
+      operations (C.Choose _ yes no) = operations yes ++ operations no
+      isRevocation C.SignOut = True
+      isRevocation C.ReadOnly = True
+      isRevocation _ = False
+      expected = any isRevocation (operations p)
+   in conjoin
+        [ R.mentionsRevocation p === expected
+        , R.afterFailure p session === if expected then Nothing else session
+        , R.afterFailure (C.Invoke C.SignOut p) session === Nothing
+        , R.afterFailure (C.Invoke C.ReadOnly p) session === Nothing
+        , R.afterFailure (C.Choose condition p signOut) session === Nothing
+        , R.afterFailure (C.Choose condition restrict p) session === Nothing
+        , R.afterFailure (C.Invoke C.ReadPublic C.Stop) session === session
+        ]
+
 exprJSON :: C.Expr -> Value
 exprJSON (C.Literal text) = object ["text" .= decodeText text]
 exprJSON (C.PrivateOf u) = object ["private" .= (if u==F.Alice then "alice" else "bob" :: String)]
@@ -165,6 +189,7 @@ main = do
   run "accepted writes require permission and protect ownership" prop_stepAuthorization
   run "private sources cannot reach public sinks or private-dependent branches" prop_privateChannels
   run "post payload remains data and cannot execute new commands" prop_payload
+  run "failed programs containing revocation close the session" (property prop_failedRevocation)
   run "JSON program representation roundtrips" prop_wireRoundtrip
   let ctx=C.Ctx (Just (C.GrantC F.Alice C.Editor)) Nothing
       viewer=C.Ctx (Just (C.GrantC F.Alice C.Viewer)) Nothing
