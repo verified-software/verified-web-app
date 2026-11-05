@@ -1,14 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module ProgramAdapter
   ( Bundle(..), decodeBundle, legacyProgram, eventsJSON, contextJSON, demoVault ) where
-import Adapter (Wire(..), encodeText, decodeText, toCount)
+import Adapter (Wire(..), encodeText, decodeText, toCount, depthWithin)
 import Control.Monad (unless)
 import Data.Aeson
 import Data.Aeson.Key qualified as Key
 import Data.Aeson.KeyMap qualified as KM
 import Data.Aeson.Types (Parser, parseEither)
 import Data.ByteString qualified as BS
-import Data.ByteString.Char8 qualified as BSC
 import Data.Text (Text)
 import ForumCore qualified as F
 import ClientCore qualified as C
@@ -117,18 +116,3 @@ eventsJSON = toJSON . map event
 demoVault :: C.Vault
 demoVault = C.VaultC (text "Alice private draft: alpha") (text "Bob private draft: beta")
   where text = either error id . encodeText
-
--- Bound the byte-level JSON pre-scan before invoking the unverified parser.
-depthWithin :: Int -> BS.ByteString -> Bool
-depthWithin limit = scan (0::Int) False False . BSC.unpack
-  where
-    scan depth quoted escaped [] = depth==0 && not quoted && not escaped
-    scan depth True True (_:xs) = scan depth True False xs
-    scan depth True False ('\\':xs) = scan depth True True xs
-    scan depth True False ('"':xs) = scan depth False False xs
-    scan depth True False (_:xs) = scan depth True False xs
-    scan depth False _ ('"':xs) = scan depth True False xs
-    scan depth False _ (x:xs)
-      | x=='{' || x=='[' = depth<limit && scan (depth+1) False False xs
-      | x=='}' || x==']' = depth>0 && scan (depth-1) False False xs
-      | otherwise = scan depth False False xs

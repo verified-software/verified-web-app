@@ -2,6 +2,7 @@
 module Server (runServer) where
 import Adapter
 import ProgramAdapter
+import TenantAdapter (principal)
 import Control.Concurrent.MVar
 import Data.Aeson (Value, encode, object, (.=))
 import Data.ByteString qualified as BS
@@ -13,6 +14,7 @@ import Data.Text.Encoding qualified as TE
 import Data.Text qualified as Text
 import ForumCore qualified as F
 import ClientCore qualified as C
+import VerifiedTenant qualified as T
 import Network.HTTP.Types
 import Network.Wai hiding (vault)
 import Network.Wai.Handler.Warp
@@ -20,7 +22,27 @@ import Numeric (showHex)
 import System.IO (IOMode(ReadMode), withBinaryFile)
 import System.Environment (lookupEnv)
 
-data World = World { sessions :: Map BS.ByteString C.Context, posts :: [F.Post], vault :: C.Vault }
+data World = World { sessions :: Map BS.ByteString C.Context, posts :: [F.Post],
+  tenantPosts :: Map T.TenantId [F.Post], vault :: C.Vault }
+data Scope = Public | Tenant T.TenantId
+
+scopePosts :: World -> Scope -> [F.Post]
+scopePosts world Public = posts world
+scopePosts world (Tenant key) = Map.findWithDefault [] key (tenantPosts world)
+
+putScopePosts :: Scope -> [F.Post] -> World -> World
+putScopePosts Public ps world = world {posts=ps}
+putScopePosts (Tenant key) ps world = world {tenantPosts=Map.insert key ps (tenantPosts world)}
+
+accessPosts :: C.Context -> T.Action -> Scope -> World -> Maybe [F.Post]
+accessPosts _ _ Public world = Just (posts world)
+accessPosts ctx action scope@(Tenant key) world =
+  T.guarded (principal ctx) action (T.forTenant key (scopePosts world scope))
+
+accessDenied :: C.Context -> Response
+accessDenied ctx = case C.current ctx of
+  Nothing -> failure status401 "authentication required"
+  Just _ -> failure status403 "tenant access denied"
 headers :: ResponseHeaders
 headers = [("X-Content-Type-Options","nosniff"),("Cache-Control","no-store"),
   ("Content-Security-Policy","default-src 'none'; base-uri 'none'; frame-ancestors 'none'")]
@@ -53,18 +75,20 @@ resolve req world = case lookup hAuthorization (requestHeaders req) of
 
 -- Both routes enforce the extracted interpreter. No alternate legacy write
 -- path can bypass attenuation. Only a Finished program can commit state.
-process :: MVar World -> Request -> Bool -> Bundle -> IO Response
-process ref req legacy bundle = modifyMVar ref $ \world -> case resolve req world of
+process :: MVar World -> Request -> Scope -> Bool -> Bundle -> IO Response
+process ref req scope legacy bundle = modifyMVar ref $ \world -> case resolve req world of
   Left response -> pure (world,response)
-  Right (token,stored) -> case loginOffer of
-    Left response -> pure (world,response)
-    Right offer ->
-      let ctx=C.Ctx (C.current stored) offer
-       in case C.transaction textLimit postLimit (budget bundle) (program bundle) ctx (posts world) (vault world) of
-         C.Rollback err ps -> pure (world {posts=ps},failure (errorStatus ctx err) (show err))
-         C.Commit next ps trace
-           | not (C.confined next (C.sources ctx)) -> pure (world,failure status500 "capability origin check failed")
-           | otherwise -> commit world token stored next ps trace
+  Right (token,stored) -> case accessPosts stored T.Write scope world of
+    Nothing -> pure (world,accessDenied stored)
+    Just before -> case loginOffer of
+      Left response -> pure (world,response)
+      Right offer ->
+        let ctx=C.Ctx (C.current stored) offer
+         in case C.transaction textLimit postLimit (budget bundle) (program bundle) ctx before (vault world) of
+           C.Rollback err _ -> pure (world,failure (errorStatus ctx err) (show err))
+           C.Commit next ps trace
+             | not (C.confined next (C.sources ctx)) -> pure (world,failure status500 "capability origin check failed")
+             | otherwise -> commit world token stored next ps trace
   where
     loginOffer = case credentials bundle of
       Nothing -> Right Nothing
@@ -76,15 +100,15 @@ process ref req legacy bundle = modifyMVar ref $ \world -> case resolve req worl
         if Map.size (sessions world)>=64 then pure (world,failure status429 "session capacity reached") else do
           fresh <- uniqueToken (sessions world)
           let clean=C.Ctx (C.current next) Nothing
-              world'=world {sessions=Map.insert fresh clean (sessions world),posts=ps}
+              world'=(putScopePosts scope ps world) {sessions=Map.insert fresh clean (sessions world)}
           pure (world',response next ps trace (Just fresh) False)
       (Just _,Nothing) ->
         let sessions'=maybe (sessions world) (`Map.delete` sessions world) token
-         in pure (world {sessions=sessions',posts=ps},response next ps trace Nothing True)
+         in pure ((putScopePosts scope ps world) {sessions=sessions'},response next ps trace Nothing True)
       _ ->
         let clean=C.Ctx (C.current next) Nothing
             sessions'=maybe (sessions world) (\t -> Map.insert t clean (sessions world)) token
-         in pure (world {sessions=sessions',posts=ps},response next ps trace Nothing False)
+         in pure ((putScopePosts scope ps world) {sessions=sessions'},response next ps trace Nothing False)
     response next ps trace fresh loggedOut =
       let fields=["posts" .= postsJSON ps] <>
             maybe [] (\token -> ["token" .= TE.decodeUtf8 token]) fresh <>
@@ -119,16 +143,30 @@ application ref req respond = case (requestMethod req,pathInfo req) of
           mconcat fragments<>"</body></html>"
     respond (responseLBS status200 ((hContentType,"text/html; charset=utf-8"):headers) (LBS.fromStrict (TE.encodeUtf8 html)))
   ("GET",["posts"]) -> readMVar ref >>= respond . json status200 . postsJSON . posts
-  ("POST",["command"]) -> post 4096 $ \bytes -> case parseWire bytes of
-    Left err -> respond (failure status400 err)
-    Right wire ->
-      let supplied=case wire of Login u p -> Just (u,p); _ -> Nothing
-       in process ref req True (Bundle (toCount 1) (legacyProgram wire) supplied) >>= respond
-  ("POST",["program"]) -> post 16384 $ \bytes -> case decodeBundle bytes of
-    Left err -> respond (failure status400 err)
-    Right bundle -> process ref req False bundle >>= respond
+  ("GET",["tenants",name,"posts"]) -> withTenant name $ \scope -> do
+    world <- readMVar ref
+    case resolve req world of
+      Left response -> respond response
+      Right (_,ctx) -> case accessPosts ctx T.Read scope world of
+        Nothing -> respond (accessDenied ctx)
+        Just ps -> respond (json status200 (postsJSON ps))
+  ("POST",["command"]) -> command Public
+  ("POST",["program"]) -> programRoute Public
+  ("POST",["tenants",name,"command"]) -> withTenant name command
+  ("POST",["tenants",name,"program"]) -> withTenant name programRoute
   _ -> respond (failure status404 "unsupported endpoint")
   where
+    withTenant name k = case T.tenantId name of
+      Nothing -> respond (failure status400 "invalid tenant id")
+      Just key -> k (Tenant key)
+    command scope = post 4096 $ \bytes -> case parseWire bytes of
+      Left err -> respond (failure status400 err)
+      Right wire ->
+        let supplied=case wire of Login u p -> Just (u,p); _ -> Nothing
+         in process ref req scope True (Bundle (toCount 1) (legacyProgram wire) supplied) >>= respond
+    programRoute scope = post 16384 $ \bytes -> case decodeBundle bytes of
+      Left err -> respond (failure status400 err)
+      Right bundle -> process ref req scope False bundle >>= respond
     post limit k =
       if lookup hContentType (requestHeaders req)/=Just "application/json" then
         respond (failure status415 "Content-Type must be application/json")
@@ -137,7 +175,7 @@ application ref req respond = case (requestMethod req,pathInfo req) of
 runServer :: Int -> IO ()
 runServer port = do
   privateVault <- fixtureVault
-  world <- newMVar (World Map.empty [] privateVault)
+  world <- newMVar (World Map.empty [] Map.empty privateVault)
   putStrLn ("Verified forum at http://127.0.0.1:"<>show port)
   runSettings (setTimeout 5 (setHost "127.0.0.1" (setPort port defaultSettings))) (application world)
 

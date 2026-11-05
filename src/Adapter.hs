@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Adapter
   ( Wire(..), parseWire, encodeText, decodeText, safeAlphabet, toCount, textLimit,
-    postLimit, authenticate, renderFragment, postsJSON, depthOK ) where
+    postLimit, authenticate, renderFragment, postsJSON, depthOK, depthWithin ) where
 
 import Control.Monad (unless)
 import Data.Aeson
@@ -80,7 +80,10 @@ parseWire bytes = do
 -- Linear pre-scan before JSON decoding; brackets inside quoted strings do not
 -- increase nesting. Full syntax validation remains Aeson's job.
 depthOK :: BS.ByteString -> Bool
-depthOK = scan (0 :: Int) False False . BSC.unpack
+depthOK = depthWithin 2
+
+depthWithin :: Int -> BS.ByteString -> Bool
+depthWithin limit = scan (0 :: Int) False False . BSC.unpack
   where
     scan depth quoted escaped [] = depth == 0 && not quoted && not escaped
     scan depth True True (_:xs) = scan depth True False xs
@@ -89,7 +92,7 @@ depthOK = scan (0 :: Int) False False . BSC.unpack
     scan depth True False (_:xs) = scan depth True False xs
     scan depth False _ ('"':xs) = scan depth True False xs
     scan depth False _ (x:xs)
-      | x == '{' || x == '[' = depth < 2 && scan (depth+1) False False xs
+      | x == '{' || x == '[' = depth < limit && scan (depth+1) False False xs
       | x == '}' || x == ']' = depth > 0 && scan (depth-1) False False xs
       | otherwise = scan depth False False xs
 
