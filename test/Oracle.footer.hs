@@ -8,6 +8,9 @@ backUser M.C_Bob_6 = C.Bob
 count :: C.Count -> M.T_Count_10
 count C.Zero = M.C_Zero_12
 count (C.More n) = M.C_More_14 (count n)
+backCount :: M.T_Count_10 -> C.Count
+backCount M.C_Zero_12 = C.Zero
+backCount (M.C_More_14 n) = C.More (backCount n)
 glyph :: C.Glyph -> M.T_Glyph_210
 glyph (C.Plain c) = M.C_Plain_212 (toSafe c)
 glyph C.Lt = M.C_Lt_214

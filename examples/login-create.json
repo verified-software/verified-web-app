@@ -1,0 +1,1 @@
+{"budget":4,"credentials":{"user":"alice","password":"alice-demo"},"program":{"op":"login","next":{"op":"create","value":{"text":"Hello verified capabilities"},"next":{"op":"inspect","value":{"private":"alice"},"next":{"op":"read"}}}}}
