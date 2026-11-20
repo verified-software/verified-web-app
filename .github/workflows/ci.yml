@@ -1,0 +1,87 @@
+name: Haskell and Agda
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  haskell:
+    name: Haskell ${{ matrix.ghc }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['9.10.3', '9.14.1']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: 'latest'
+      - name: Build server
+        run: |
+          cabal update
+          cabal build exe:verified-forum
+      - name: Black-box HTTP tests
+        run: |
+          set -euo pipefail
+          server="$(cabal list-bin exe:verified-forum)"
+          bash scripts/http-tests.sh "$server"
+          bash scripts/program-http-tests.sh "$server"
+          bash scripts/observer-http-tests.sh "$server"
+          python3 test/tenant_http.py "$server"
+
+  proofs-and-extraction:
+    name: Agda 2.9 proofs, agda2hs HEAD, Haskell tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: agda/agda-setup-action@v1
+        with:
+          agda-version: '2.9.0'
+
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.3'
+          cabal-version: 'latest'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            ~/.cabal/packages
+          key: ${{ runner.os }}-ghc-9.10.3-agda2hs-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.10.3-agda2hs-
+      - name: Build current agda2hs
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/agda/agda2hs.git "$RUNNER_TEMP/agda2hs"
+          git -C "$RUNNER_TEMP/agda2hs" log -1 --oneline
+          (
+            cd "$RUNNER_TEMP/agda2hs"
+            cabal update
+            cabal build -j2 exe:agda2hs
+            mkdir -p "$HOME/.local/bin"
+            cp "$(cabal list-bin exe:agda2hs)" "$HOME/.local/bin/agda2hs"
+          )
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Check proofs and extract Haskell
+        run: |
+          agda --version
+          agda2hs --version
+          bash scripts/prepare.sh
+      - name: Check generated Haskell is current
+        run: git diff --exit-code -- generated/
+      - name: Run all Cabal tests
+        run: |
+          cabal build all
+          cabal test all --test-show-details=direct
