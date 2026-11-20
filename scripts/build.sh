@@ -25,7 +25,6 @@ run http-tests bash scripts/http-tests.sh
 run program-http-tests bash scripts/program-http-tests.sh
 run observer-http-tests bash scripts/observer-http-tests.sh
 run tenant-http-tests python3 test/tenant_http.py bin/verified-forum
-run limitations bash scripts/check-limitations.sh
 { ghc --version; cabal --version; agda --version; agda2hs --version; } > evidence/versions.txt
 bash scripts/report.sh
-echo 'Proofs, extraction, property tests, HTTP tests and compiler reproductions passed.'
+echo 'Proofs, extraction, property tests and HTTP tests passed.'

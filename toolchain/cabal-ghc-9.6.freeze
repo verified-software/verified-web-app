@@ -1,10 +1,10 @@
 active-repositories: hackage.haskell.org:merge
 constraints: any.OneTuple ==0.4.3,
              OneTuple +base-ge-4-15 +base-ge-4-16,
-             any.QuickCheck ==2.18.0.0,
+             any.QuickCheck >=2.14 && <3,
              QuickCheck -old-random +templatehaskell,
              any.StateVar ==1.2.2,
-             any.aeson ==2.3.2.0,
+             any.aeson >=2.2 && <3,
              aeson +ordered-keymap,
              any.ansi-terminal ==1.1.5,
              ansi-terminal -example,

@@ -107,15 +107,15 @@ process ref req scope legacy bundle = modifyMVar ref $ \world -> case resolve re
           fresh <- uniqueToken (sessions world)
           let clean=C.Ctx (C.current next) Nothing
               world'=(putScopePosts scope ps world) {sessions=Map.insert fresh clean (sessions world)}
-          pure (world',response next ps trace (Just fresh) False)
+          pure (world',successResponse next ps trace (Just fresh) False)
       (Just _,Nothing) ->
         let sessions'=maybe (sessions world) (`Map.delete` sessions world) token
-         in pure ((putScopePosts scope ps world) {sessions=sessions'},response next ps trace Nothing True)
+         in pure ((putScopePosts scope ps world) {sessions=sessions'},successResponse next ps trace Nothing True)
       _ ->
         let clean=C.Ctx (C.current next) Nothing
             sessions'=maybe (sessions world) (\t -> Map.insert t clean (sessions world)) token
-         in pure ((putScopePosts scope ps world) {sessions=sessions'},response next ps trace Nothing False)
-    response next ps trace fresh loggedOut =
+         in pure ((putScopePosts scope ps world) {sessions=sessions'},successResponse next ps trace Nothing False)
+    successResponse next ps trace fresh loggedOut =
       let fields=["posts" .= postsJSON ps] <>
             maybe [] (\token -> ["token" .= TE.decodeUtf8 token]) fresh <>
             (if loggedOut then ["loggedOut" .= True] else []) <>

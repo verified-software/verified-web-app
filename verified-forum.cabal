@@ -10,13 +10,13 @@ library
   other-modules: TenantCore
   default-language: GHC2021
   ghc-options: -Wall -O0
-  build-depends: base >=4.18 && <4.19, bytestring, text
+  build-depends: base >=4.18 && <5, bytestring, text
 
 common core
   default-language: GHC2021
   hs-source-dirs: generated, src
   ghc-options: -Wall -O0
-  build-depends: base >=4.18 && <4.19, aeson ==2.3.2.0, bytestring, text, containers, scientific, verified-forum
+  build-depends: base >=4.18 && <5, aeson >=2.2 && <3, bytestring, text, containers, scientific, verified-forum
   other-modules: ForumCore, ClientCore, RevocationCore, Adapter, ProgramAdapter, TenantAdapter
 
 executable verified-forum
@@ -32,22 +32,48 @@ test-suite core-tests
   type: exitcode-stdio-1.0
   hs-source-dirs: test, build/model
   main-is: CoreSpec.hs
-  build-depends: QuickCheck ==2.18.0.0
-  other-modules: Oracle, MAlonzo.Code.ForumCore, MAlonzo.RTE
+  build-depends: QuickCheck >=2.14 && <3
+  other-modules: Oracle, MAlonzo.Code.ForumCore, MAlonzo.RTE,
+    MAlonzo.Code.Agda.Builtin.List,
+    MAlonzo.Code.Agda.Builtin.Bool,
+    MAlonzo.Code.Agda.Builtin.Equality,
+    MAlonzo.Code.Agda.Builtin.FromNat,
+    MAlonzo.Code.Agda.Builtin.FromString,
+    MAlonzo.Code.Agda.Builtin.String,
+    MAlonzo.Code.Agda.Primitive,
+    MAlonzo.Code.Haskell.Prim,
+    MAlonzo.Code.Haskell.Prim.Maybe
 
 test-suite program-tests
   import: core
   type: exitcode-stdio-1.0
   hs-source-dirs: test, build/model
   main-is: ProgramSpec.hs
-  build-depends: QuickCheck ==2.18.0.0
+  build-depends: QuickCheck >=2.14 && <3
   other-modules: Oracle, ClientOracle, MAlonzo.Code.ForumCore, MAlonzo.Code.ClientCore,
-    MAlonzo.Code.ClientModel, MAlonzo.RTE
+    MAlonzo.Code.ClientModel, MAlonzo.RTE,
+    MAlonzo.Code.Agda.Builtin.List, MAlonzo.Code.Haskell.Prim.Bool,
+    MAlonzo.Code.Agda.Builtin.Bool,
+    MAlonzo.Code.Agda.Builtin.Equality,
+    MAlonzo.Code.Agda.Builtin.FromNat,
+    MAlonzo.Code.Agda.Builtin.FromString,
+    MAlonzo.Code.Agda.Builtin.String,
+    MAlonzo.Code.Agda.Primitive,
+    MAlonzo.Code.Haskell.Prim,
+    MAlonzo.Code.Haskell.Prim.Maybe
 
 test-suite tenant-tests
   import: core
   type: exitcode-stdio-1.0
   hs-source-dirs: test, build/model
   main-is: TenantSpec.hs
-  build-depends: QuickCheck ==2.18.0.0
-  other-modules: TenantCore, MAlonzo.Code.TenantCore, MAlonzo.RTE
+  build-depends: QuickCheck >=2.14 && <3
+  other-modules: TenantCore, MAlonzo.Code.TenantCore, MAlonzo.RTE,
+    MAlonzo.Code.Agda.Builtin.Bool,
+    MAlonzo.Code.Agda.Builtin.Equality,
+    MAlonzo.Code.Agda.Builtin.FromNat,
+    MAlonzo.Code.Agda.Builtin.FromString,
+    MAlonzo.Code.Agda.Builtin.String,
+    MAlonzo.Code.Agda.Primitive,
+    MAlonzo.Code.Haskell.Prim,
+    MAlonzo.Code.Haskell.Prim.Maybe
