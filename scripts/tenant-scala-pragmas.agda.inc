@@ -1,0 +1,7 @@
+{-# COMPILE AGDA2SCALA Role #-}
+{-# COMPILE AGDA2SCALA Principal #-}
+{-# COMPILE AGDA2SCALA Action #-}
+{-# COMPILE AGDA2SCALA Scoped #-}
+{-# COMPILE AGDA2SCALA sameId #-}
+{-# COMPILE AGDA2SCALA permitted #-}
+{-# COMPILE AGDA2SCALA guarded #-}

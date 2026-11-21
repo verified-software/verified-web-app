@@ -67,13 +67,17 @@ pair 403 'private control denied' '{"budget":1,"program":{"if":{"private":"bob"}
 pair 200 'public write, own private read, public read' '{"budget":3,"program":{"op":"create","value":{"text":"Bob public text"},"next":{"op":"inspect","value":{"private":"bob"},"next":{"op":"read"}}}}'
 pair 200 'only selected public branch executes' '{"budget":2,"program":{"if":{"text":"nonempty"},"then":{"op":"inspect","value":{"private":"alice"}},"else":{"op":"read"}}}'
 pair 429 'exhausted batch rolls back public write' '{"budget":1,"program":{"op":"create","value":{"text":"rollback"},"next":{"op":"read"}}}'
-pair 403 'failed batch rolls back attenuation' '{"budget":2,"program":{"op":"restrict","next":{"op":"create","value":{"text":"denied"}}}}'
-pair 200 'write still authorized after failed attenuation batch' '{"budget":1,"program":{"op":"create","value":{"text":"Bob remains writer"}}}'
+pair 403 'failed batch with attenuation revokes session' '{"budget":2,"program":{"op":"restrict","next":{"op":"create","value":{"text":"denied"}}}}'
+pair 401 'session revoked after failed attenuation batch' '{"budget":1,"program":{"op":"create","value":{"text":"denied"}}}'
+left_token= right_token=
+pair 200 'fresh login after failed attenuation' '{"budget":1,"credentials":{"user":"bob","password":"bob-demo"},"program":{"op":"login"}}'
 pair 200 'successful attenuation persists' '{"budget":1,"program":{"op":"restrict"}}'
 pair 403 'legacy write cannot bypass attenuation' '{"op":"create","body":"bypass"}' command
 pair 200 'viewer still receives only own private value' '{"budget":1,"program":{"op":"inspect","value":{"private":"bob"}}}'
-pair 403 'failed batch rolls back logout' '{"budget":2,"program":{"op":"logout","next":{"op":"inspect","value":{"private":"bob"}}}}'
-pair 200 'session retained after failed logout batch' '{"budget":1,"program":{"op":"inspect","value":{"private":"bob"}}}'
+pair 403 'failed batch with logout revokes session' '{"budget":2,"program":{"op":"logout","next":{"op":"inspect","value":{"private":"bob"}}}}'
+pair 401 'session revoked after failed logout batch' '{"budget":1,"program":{"op":"inspect","value":{"private":"bob"}}}'
+left_token= right_token=
+pair 200 'fresh login after failed logout' '{"budget":1,"credentials":{"user":"bob","password":"bob-demo"},"program":{"op":"login"}}'
 pair 200 'successful logout' '{"budget":1,"program":{"op":"logout"}}'
 pair 401 'replay after successful logout' '{"budget":1,"program":{"op":"inspect","value":{"private":"bob"}}}'
 for side in left right; do
